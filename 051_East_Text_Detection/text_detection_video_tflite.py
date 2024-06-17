@@ -125,7 +125,7 @@ def decode_predictions(scores, geometry1, geometry2):
         xData1 = geometry1[0, 1, y]
         xData2 = geometry1[0, 2, y]
         xData3 = geometry1[0, 3, y]
-        anglesData = geometry2[0, 0, y]
+        anglesData = geometry2[0, 4, y]
         
         # loop over the number of columns
         for x in range(0, numCols):
@@ -167,11 +167,11 @@ def decode_predictions(scores, geometry1, geometry2):
 
 # construct the argument parser and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-east", "--east", type=str, default="east_text_detection_256x256_integer_quant.tflite", help="path to input EAST text detector")
+ap.add_argument("-east", "--east", type=str, default="1_edgetpu.tflite", help="path to input EAST text detector") #east_text_detection_256x256_integer_quant.tflite
 ap.add_argument("-v", "--video", type=str, help="path to optinal input video file")
-ap.add_argument("-c", "--min-confidence", type=float, default=0.5, help="minimum probability required to inspect a region")
-ap.add_argument("-w", "--width", type=int, default=256,	help="resized image width (should be multiple of 32)")
-ap.add_argument("-e", "--height", type=int, default=256, help="resized image height (should be multiple of 32)")
+ap.add_argument("-c", "--min-confidence", type=float, default=0.001, help="minimum probability required to inspect a region")
+ap.add_argument("-w", "--width", type=int, default=320,	help="resized image width (should be multiple of 32)")#256
+ap.add_argument("-e", "--height", type=int, default=320, help="resized image height (should be multiple of 32)")#256
 ap.add_argument("-cw", "--camera_width", type=int, default=640, help='USB Camera resolution (width). (Default=640)')
 ap.add_argument("-ch", "--camera_height", type=int, default=480, help='USB Camera resolution (height). (Default=480)')
 args = vars(ap.parse_args())
@@ -214,8 +214,9 @@ while True:
 
     # grab the current frame, then handle if we are using a
     # VideoStream or VideoCapture object
-    frame = vs.read()
-    frame = frame[1] if args.get("video", False) else frame
+    #frame = vs.read()
+    #frame = frame[1] if args.get("video", False) else frame
+    frame = cv2.imread("img_12.jpg")
 
     # check to see if we have reached the end of the stream
     if frame is None:
@@ -234,6 +235,7 @@ while True:
 
     # resize the frame, this time ignoring aspect ratio
     frame = cv2.resize(frame, (newW, newH))
+    #print(frame.size)
 
     # construct a blob from the frame and then perform a forward pass
     # of the model to obtain the two output layer sets
@@ -243,10 +245,12 @@ while True:
     frame = np.expand_dims(frame, axis=0)
     interpreter.set_tensor(input_details[0]['index'], frame)
     interpreter.invoke()
-
+    
+    #print(output_details[0]['index'])
     scores = interpreter.get_tensor(output_details[0]['index'])
     geometry1 = interpreter.get_tensor(output_details[1]['index'])
-    geometry2 = interpreter.get_tensor(output_details[2]['index'])
+    #geometry2 = interpreter.get_tensor(output_details[2]['index'])
+    geometry2=geometry1
     scores = np.transpose(scores, [0, 3, 1, 2])
     geometry1 = np.transpose(geometry1, [0, 3, 1, 2])
     geometry2 = np.transpose(geometry2, [0, 3, 1, 2])
@@ -291,6 +295,7 @@ while True:
         time1 = 0
     t2 = time.perf_counter()
     elapsedTime = t2-t1
+    print(f'infer time: {elapsedTime}')
     time1 += 1/elapsedTime
 
 # stop the timer and display FPS information
